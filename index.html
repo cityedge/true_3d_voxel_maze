@@ -1,0 +1,1384 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>True 3D Voxel Maze v1.0.0</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #070a12;
+    --panel: #0f1726;
+    --panel2: #141f33;
+    --text: #e8eef8;
+    --muted: #a9b5c9;
+    --accent: #71c9ff;
+    --ok: #4ade80;
+    --bad: #fb7185;
+    --line: #263550;
+    --btn: #1c2a43;
+    --btn2: #263958;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(circle at top, #111b2c 0%, #070a12 48%, #03050a 100%);
+    color: var(--text);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  header {
+    padding: 14px 18px 10px;
+    border-bottom: 1px solid var(--line);
+    background: rgba(7,10,18,.85);
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    backdrop-filter: blur(10px);
+  }
+  h1 {
+    margin: 0 0 4px;
+    font-size: 18px;
+    letter-spacing: .02em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .version-badge {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid rgba(113,201,255,.25);
+    background: rgba(113,201,255,.12);
+    color: #dff4ff;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .02em;
+  }
+  .subtitle {
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  main {
+    display: grid;
+    grid-template-columns: minmax(0, 800px) 300px;
+    grid-template-areas: "maze side";
+    gap: 14px;
+    padding: 14px;
+    max-width: 1142px;
+    margin: 0 auto;
+    justify-content: center;
+    align-items: start;
+  }
+  .maze-column {
+    grid-area: maze;
+    min-width: 0;
+  }
+  .stage, .side, .controls, .panel {
+    border: 1px solid var(--line);
+    background: rgba(15,23,38,.86);
+    border-radius: 16px;
+    box-shadow: 0 10px 32px rgba(0,0,0,.26);
+  }
+  .stage {
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+  }
+  canvas#view {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: #050812;
+    touch-action: none;
+  }
+  .hud {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .pill {
+    background: rgba(7,12,22,.78);
+    border: 1px solid rgba(130,160,205,.18);
+    border-radius: 999px;
+    padding: 7px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #f3f7ff;
+  }
+  .message {
+    position: absolute;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    max-width: 82%;
+    color: #e8f6ff;
+    background: rgba(5,9,18,.75);
+    border: 1px solid rgba(113,201,255,.25);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 13px;
+    text-align: center;
+    pointer-events: none;
+  }
+  .controls {
+    padding: 12px;
+  }
+  .side .controls { margin: 0 0 14px; }
+  .pad {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(64px, 1fr));
+    grid-template-areas:
+      ". up ."
+      "left fwd right"
+      ". down back";
+    gap: 8px;
+    max-width: 440px;
+    margin: 0 auto;
+  }
+  button, select, input {
+    color: var(--text);
+    background: var(--btn);
+    border: 1px solid #344766;
+    border-radius: 10px;
+    min-height: 38px;
+    padding: 8px 10px;
+    font: inherit;
+  }
+  button { cursor: pointer; font-weight: 700; transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease; }
+  button:hover { background: var(--btn2); }
+  button:disabled { opacity: .55; cursor: not-allowed; }
+  input[type="color"] {
+    padding: 3px;
+    min-height: 38px;
+  }
+  input[type="checkbox"] {
+    width: auto;
+    min-height: auto;
+    accent-color: var(--accent);
+  }
+  input[type="range"] {
+    width: 100%;
+    min-height: 30px;
+    padding: 0;
+    accent-color: var(--accent);
+  }
+  .range-field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 46px;
+    gap: 8px;
+    align-items: center;
+    min-height: 38px;
+  }
+  .range-field output {
+    color: #f3f7ff;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .inline-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    color: var(--text);
+    font-size: 13px;
+  }
+  .inline-check span { color: var(--text); }
+  .copy-value {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+    font-weight: 600;
+    user-select: text;
+  }
+  .nav-open { background: rgba(74,222,128,.18) !important; border-color: rgba(74,222,128,.72) !important; box-shadow: inset 0 0 0 1px rgba(74,222,128,.18); }
+  .nav-closed { background: rgba(251,113,133,.12) !important; border-color: rgba(251,113,133,.56) !important; }
+  .nav-neutral { background: var(--btn); border-color: #344766; box-shadow: none; }
+  #btnUp { grid-area: up; }
+  #btnLeft { grid-area: left; }
+  #btnForward { grid-area: fwd; background: #234263; border-color: #46719d; }
+  #btnRight { grid-area: right; }
+  #btnDown { grid-area: down; }
+  #btnBack { grid-area: back; }
+  .side {
+    grid-area: side;
+    padding: 14px;
+    align-self: start;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 92px minmax(0,1fr);
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 9px;
+  }
+  .row label { font-size: 12px; color: var(--muted); }
+  .row input, .row select, .row button { width: 100%; }
+  .side h2 {
+    font-size: 14px;
+    margin: 16px 0 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .side h2:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+  .stats {
+    display: grid;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .stat {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 8px;
+    background: rgba(255,255,255,.035);
+    border-radius: 9px;
+  }
+  .stat span:first-child { color: var(--muted); }
+  .hint {
+    margin: 10px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+  .color-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .color-cell label {
+    display: block;
+    margin: 0 0 5px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .color-cell input { width: 100%; }
+  @media (max-width: 900px) {
+    main {
+      grid-template-columns: minmax(0, 800px);
+      grid-template-areas:
+        "maze"
+        "side";
+    }
+  }
+  @media (max-width: 520px) {
+    main { padding: 8px; gap: 8px; }
+    header { padding: 10px 12px; }
+    .stage, .side, .controls { border-radius: 12px; }
+    .pill { font-size: 11px; padding: 6px 8px; }
+    .pad { grid-template-columns: repeat(3, 1fr); }
+    .row { grid-template-columns: 86px minmax(0,1fr); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1><span data-i18n="title">True 3D Voxel Maze</span><span class="version-badge">v1.0.0</span></h1>
+  <p class="subtitle" data-i18n="subtitle">立方体状のボクセル空間を探索する、ブラウザ単体の真の立体迷路です。</p>
+</header>
+<main>
+  <section class="maze-column">
+    <div class="stage">
+      <canvas id="view" width="800" height="600" aria-label="voxel maze view"></canvas>
+      <div class="hud">
+        <div class="pill" id="hudPos"></div>
+        <div class="pill" id="hudDir"></div>
+        <div class="pill" id="hudSteps"></div>
+      </div>
+      <div class="message" id="message"></div>
+    </div>
+  </section>
+  <aside class="side">
+    <div class="controls">
+      <div class="pad">
+        <button id="btnUp" data-i18n="up">上回転</button>
+        <button id="btnLeft" data-i18n="left">左回転</button>
+        <button id="btnForward" data-i18n="forward">前進</button>
+        <button id="btnRight" data-i18n="right">右回転</button>
+        <button id="btnDown" data-i18n="down">下回転</button>
+        <button id="btnBack" data-i18n="back">後退</button>
+      </div>
+      <p class="hint" data-i18n="controlHint">操作: ↑↓←→で90度回転、Spaceで前進、Shift+Spaceで後退。ボタンでも同じ操作ができます。</p>
+    </div>
+
+    <h2 data-i18n="exploreInfo">探索情報</h2>
+    <div class="stats">
+      <div class="stat"><span data-i18n="position">位置</span><b id="statPos"></b></div>
+      <div class="stat"><span data-i18n="facing">正面</span><b id="statFace"></b></div>
+      <div class="stat"><span data-i18n="upward">上方向</span><b id="statUp"></b></div>
+      <div class="stat"><span data-i18n="goal">ゴール</span><b id="statGoal"></b></div>
+      <div class="stat"><span data-i18n="steps">歩数</span><b id="statSteps"></b></div>
+    </div>
+
+    <h2 data-i18n="setup">迷路の設定</h2>
+    <div class="row">
+      <label for="langSelect" data-i18n="language">言語</label>
+      <select id="langSelect"><option value="ja">日本語</option><option value="en">English</option></select>
+    </div>
+    <div class="row">
+      <label for="sizeSelect" data-i18n="size">サイズ</label>
+      <select id="sizeSelect">
+        <option value="3">3³ rooms / 7³ voxels</option>
+        <option value="4" selected>4³ rooms / 9³ voxels</option>
+        <option value="5">5³ rooms / 11³ voxels</option>
+        <option value="6">6³ rooms / 13³ voxels</option>
+        <option value="7">7³ rooms / 15³ voxels</option>
+        <option value="8">8³ rooms / 17³ voxels</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="extraPassageSlider" data-i18n="extraPassages">追加通路</label>
+      <div class="range-field">
+        <input id="extraPassageSlider" type="range" min="0" max="30" step="1" value="7" />
+        <output id="extraPassageValue" for="extraPassageSlider">7%</output>
+      </div>
+    </div>
+    <div class="row">
+      <label for="seedInput" data-i18n="seed">シード</label>
+      <input id="seedInput" type="text" value="" spellcheck="false" />
+    </div>
+    <div class="row">
+      <label for="currentSeedLabel" data-i18n="currentSeed">現在のシード</label>
+      <button id="currentSeedLabel" class="copy-value" type="button" title="クリックしてコピー">-</button>
+    </div>
+    <div class="row">
+      <label></label>
+      <button id="btnNew" data-i18n="newMaze">新しい迷路</button>
+    </div>
+    <div class="row">
+      <label for="visitedMarkerCheck" data-i18n="visitedMarkers">通過済み</label>
+      <label class="inline-check"><input id="visitedMarkerCheck" type="checkbox" checked /> <span data-i18n="showVisitedMarkers">マーカーを表示</span></label>
+    </div>
+    <div class="row">
+      <label data-i18n="coloring">カラーリング</label>
+      <div class="color-grid">
+        <div class="color-cell">
+          <label for="baseColorInput" data-i18n="baseColor">ベース</label>
+          <input id="baseColorInput" type="color" value="#4e5e7c" />
+        </div>
+        <div class="color-cell">
+          <label for="goalColorInput" data-i18n="goalColor">ゴール</label>
+          <input id="goalColorInput" type="color" value="#ffc456" />
+        </div>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = id => document.getElementById(id);
+  const canvas = $('view');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const buffer = document.createElement('canvas');
+  const bctx = buffer.getContext('2d', { alpha: false });
+
+  const I18N = {
+    ja: {
+      title: 'True 3D Voxel Maze',
+      subtitle: '立方体状のボクセル空間を探索する、ブラウザ単体の真の立体迷路です。',
+      controls: '操作', exploreInfo: '探索情報', setup: '迷路の設定', language: '言語', size: 'サイズ', seed: 'シード', currentSeed: '現在のシード', newMaze: '新しい迷路', extraPassages: '追加通路',
+      visitedMarkers: '通過済み', showVisitedMarkers: 'マーカーを表示', coloring: 'カラーリング', baseColor: 'ベース', goalColor: 'ゴール', status: '状態', position: '位置', facing: '正面', upward: '上方向', goal: 'ゴール', steps: '歩数',
+      controlHint: '操作: ↑↓←→で90度回転、Spaceで前進、Shift+Spaceで後退。ボタンでも同じ操作ができます。',
+      up: '上回転', down: '下回転', left: '左回転', right: '右回転', forward: '前進', back: '後退',
+      open: '通路', closed: '壁', reached: 'ゴールに到達しました。新しい迷路を生成できます。',
+      moved: '移動しました。', blocked: 'そちらは固体ブロックです。', rotated: '向きを変えました。', copied: 'シードをコピーしました。', copySeedHint: 'クリックしてコピー',
+      pos: '位置', dir: '正面', stepLabel: '歩数', f: '正面', b: '背面', u: '上', d: '下', l: '左', r: '右'
+    },
+    en: {
+      title: 'True 3D Voxel Maze',
+      subtitle: 'A browser-only voxel maze that lets you explore tunnels carved through a 3D block.',
+      controls: 'Controls', exploreInfo: 'Exploration info', setup: 'Maze settings', language: 'Language', size: 'Size', seed: 'Seed', currentSeed: 'Current seed', newMaze: 'New maze', extraPassages: 'Extra paths',
+      visitedMarkers: 'Visited', showVisitedMarkers: 'Show markers', coloring: 'Coloring', baseColor: 'Base', goalColor: 'Goal', status: 'Status', position: 'Position', facing: 'Facing', upward: 'Up', goal: 'Goal', steps: 'Steps',
+      controlHint: 'Controls: arrow keys rotate by 90°, Space moves forward, Shift+Space moves backward. Touch buttons do the same.',
+      up: 'Pitch up', down: 'Pitch down', left: 'Turn left', right: 'Turn right', forward: 'Forward', back: 'Backward',
+      open: 'Open', closed: 'Solid', reached: 'Goal reached. You can generate a new maze.',
+      moved: 'Moved.', blocked: 'Solid block in that direction.', rotated: 'Rotated.', copied: 'Seed copied.', copySeedHint: 'Click to copy',
+      pos: 'Pos', dir: 'Facing', stepLabel: 'Steps', f: 'Front', b: 'Back', u: 'Up', d: 'Down', l: 'Left', r: 'Right'
+    }
+  };
+  let lang = 'ja';
+  const t = key => (I18N[lang] && I18N[lang][key]) || I18N.ja[key] || key;
+
+  const SEED_PREFIX = 'T3DM1';
+  const DEFAULT_EXTRA_PASSAGE_PERCENT = 7;
+
+  function normalizeExtraPassagePercent(value) {
+    const n = Number.parseInt(value, 10);
+    if (!Number.isFinite(n)) return DEFAULT_EXTRA_PASSAGE_PERCENT;
+    return Math.max(0, Math.min(30, n));
+  }
+
+  function readExtraPassagePercent() {
+    return normalizeExtraPassagePercent($('extraPassageSlider')?.value || DEFAULT_EXTRA_PASSAGE_PERCENT);
+  }
+
+  function updateExtraPassageValue() {
+    const pct = readExtraPassagePercent();
+    const out = $('extraPassageValue');
+    if (out) out.textContent = `${pct}%`;
+  }
+
+  function setExtraPassagePercent(value) {
+    const pct = normalizeExtraPassagePercent(value);
+    const slider = $('extraPassageSlider');
+    if (slider) slider.value = String(pct);
+    updateExtraPassageValue();
+    return pct;
+  }
+
+  function encodeSeed(baseSeed, extraPercent) {
+    return `${SEED_PREFIX}|extra=${normalizeExtraPassagePercent(extraPercent)}|seed=${encodeURIComponent(baseSeed)}`;
+  }
+
+  function decodeSeed(text) {
+    const raw = (text || '').trim();
+    if (!raw.startsWith(`${SEED_PREFIX}|`)) {
+      return { baseSeed: raw, extraPercent: readExtraPassagePercent(), encoded: false };
+    }
+    const parts = raw.split('|').slice(1);
+    const values = {};
+    for (const part of parts) {
+      const eq = part.indexOf('=');
+      if (eq <= 0) continue;
+      values[part.slice(0, eq)] = part.slice(eq + 1);
+    }
+    let baseSeed = '';
+    try {
+      baseSeed = values.seed ? decodeURIComponent(values.seed) : '';
+    } catch (err) {
+      baseSeed = values.seed || '';
+    }
+    if (!baseSeed) baseSeed = randomSeedBase();
+    return { baseSeed, extraPercent: normalizeExtraPassagePercent(values.extra), encoded: true };
+  }
+
+  const V = {
+    add: (a,b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]],
+    sub: (a,b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]],
+    neg: a => [-a[0], -a[1], -a[2]],
+    mul: (a,s) => [a[0]*s, a[1]*s, a[2]*s],
+    dot: (a,b) => a[0]*b[0]+a[1]*b[1]+a[2]*b[2],
+    cross: (a,b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]],
+    len: a => Math.hypot(a[0],a[1],a[2]),
+    norm: a => {
+      const l = Math.hypot(a[0],a[1],a[2]) || 1;
+      return [a[0]/l, a[1]/l, a[2]/l];
+    },
+    lerp: (a,b,e) => [a[0]+(b[0]-a[0])*e, a[1]+(b[1]-a[1])*e, a[2]+(b[2]-a[2])*e],
+    round: a => a.map(v => Math.round(v))
+  };
+  const rightOf = (forward, up) => V.norm(V.cross(up, forward));
+  const centerOf = cell => [cell[0]+0.5, cell[1]+0.5, cell[2]+0.5];
+  const sameCell = (a,b) => a[0]===b[0] && a[1]===b[1] && a[2]===b[2];
+  function vecName(v) {
+    const a = V.round(v);
+    if (a[0] === 1) return '+X'; if (a[0] === -1) return '-X';
+    if (a[1] === 1) return '+Y'; if (a[1] === -1) return '-Y';
+    if (a[2] === 1) return '+Z'; if (a[2] === -1) return '-Z';
+    return `(${a.join(',')})`;
+  }
+  function rotateAround(v, axis, angle) {
+    const u = V.norm(axis);
+    const c = Math.cos(angle), s = Math.sin(angle);
+    const d = V.dot(u, v);
+    const cr = V.cross(u, v);
+    return [
+      v[0]*c + cr[0]*s + u[0]*d*(1-c),
+      v[1]*c + cr[1]*s + u[1]*d*(1-c),
+      v[2]*c + cr[2]*s + u[2]*d*(1-c)
+    ];
+  }
+  function ease(t) { return t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
+
+  function hashSeed(str) {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function mulberry32(a) {
+    return function() {
+      let t = a += 0x6D2B79F5;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function shuffle(arr, rnd) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  class VoxelMaze {
+    constructor(roomN, seedText, extraPassagePercent = DEFAULT_EXTRA_PASSAGE_PERCENT) {
+      this.roomN = roomN;
+      this.dim = roomN * 2 + 1;
+      this.seedText = seedText;
+      this.extraPassagePercent = normalizeExtraPassagePercent(extraPassagePercent);
+      this.extraPassageRate = this.extraPassagePercent / 100;
+      this.empty = new Uint8Array(this.dim * this.dim * this.dim);
+      this.generate();
+    }
+    idx(x,y,z) { return x + this.dim * (y + this.dim * z); }
+    inBounds(x,y,z) { return x >= 0 && y >= 0 && z >= 0 && x < this.dim && y < this.dim && z < this.dim; }
+    isEmpty(x,y,z) { return this.inBounds(x,y,z) && this.empty[this.idx(x,y,z)] === 1; }
+    isSolid(x,y,z) { return !this.isEmpty(x,y,z); }
+    carve(x,y,z) { if (this.inBounds(x,y,z)) this.empty[this.idx(x,y,z)] = 1; }
+    roomToVoxel(rx,ry,rz) { return [rx*2+1, ry*2+1, rz*2+1]; }
+    generate() {
+      const rnd = mulberry32(hashSeed(this.seedText + ':' + this.roomN));
+      const n = this.roomN;
+      const visited = new Uint8Array(n*n*n);
+      const ridx = (x,y,z) => x + n * (y + n * z);
+      const dirs = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+      const stack = [[0,0,0]];
+      visited[ridx(0,0,0)] = 1;
+      this.start = this.roomToVoxel(0,0,0);
+      this.carve(...this.start);
+      while (stack.length) {
+        const cur = stack[stack.length - 1];
+        const candidates = [];
+        for (const d of dirs) {
+          const nx = cur[0]+d[0], ny = cur[1]+d[1], nz = cur[2]+d[2];
+          if (nx>=0 && ny>=0 && nz>=0 && nx<n && ny<n && nz<n && !visited[ridx(nx,ny,nz)]) {
+            candidates.push(d);
+          }
+        }
+        if (!candidates.length) { stack.pop(); continue; }
+        const d = candidates[Math.floor(rnd() * candidates.length)];
+        const next = [cur[0]+d[0], cur[1]+d[1], cur[2]+d[2]];
+        visited[ridx(...next)] = 1;
+        const a = this.roomToVoxel(...cur);
+        const mid = [a[0]+d[0], a[1]+d[1], a[2]+d[2]];
+        const b = this.roomToVoxel(...next);
+        this.carve(...mid);
+        this.carve(...b);
+        stack.push(next);
+      }
+      this.addExtraPassages(mulberry32(hashSeed(this.seedText + ':' + this.roomN + ':extra:' + this.extraPassagePercent)));
+      this.goal = this.findFarthestEmpty(this.start);
+      this.goalMaxDist = this.calcGoalMaxDist();
+    }
+    addExtraPassages(rnd) {
+      if (!this.extraPassageRate) return;
+      const n = this.roomN;
+      const dirs = [[1,0,0],[0,1,0],[0,0,1]];
+      for (let rz = 0; rz < n; rz++) {
+        for (let ry = 0; ry < n; ry++) {
+          for (let rx = 0; rx < n; rx++) {
+            const a = this.roomToVoxel(rx, ry, rz);
+            for (const d of dirs) {
+              const nx = rx + d[0], ny = ry + d[1], nz = rz + d[2];
+              if (nx >= n || ny >= n || nz >= n) continue;
+              const mid = [a[0] + d[0], a[1] + d[1], a[2] + d[2]];
+              if (this.isEmpty(...mid)) continue;
+              if (rnd() < this.extraPassageRate) this.carve(...mid);
+            }
+          }
+        }
+      }
+    }
+    calcGoalMaxDist() {
+      const gc = centerOf(this.goal);
+      const lo = 0.5, hi = this.dim - 0.5;
+      const corners = [
+        [lo,lo,lo], [hi,lo,lo], [lo,hi,lo], [hi,hi,lo],
+        [lo,lo,hi], [hi,lo,hi], [lo,hi,hi], [hi,hi,hi]
+      ];
+      return Math.max(...corners.map(c => V.len(V.sub(c, gc)))) || 1;
+    }
+    findFarthestEmpty(start) {
+      const q = [start.slice()];
+      const dist = new Int32Array(this.empty.length);
+      dist.fill(-1);
+      dist[this.idx(...start)] = 0;
+      let far = start.slice();
+      const dirs = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+      for (let head=0; head<q.length; head++) {
+        const c = q[head];
+        const cd = dist[this.idx(...c)];
+        if (cd >= dist[this.idx(...far)] && (c[0]%2===1 && c[1]%2===1 && c[2]%2===1)) far = c.slice();
+        for (const d of dirs) {
+          const n = [c[0]+d[0], c[1]+d[1], c[2]+d[2]];
+          if (!this.isEmpty(...n)) continue;
+          const ni = this.idx(...n);
+          if (dist[ni] !== -1) continue;
+          dist[ni] = cd + 1;
+          q.push(n);
+        }
+      }
+      return far;
+    }
+  }
+
+  let maze = null;
+  let player = null;
+  let anim = null;
+  let messageTimer = 0;
+  let imgData = null;
+  let depthBuffer = null;
+  let normBuffer = null;
+  let currentSeedText = '';
+  let visitedFlags = null;
+  let visitedMarks = [];
+
+
+  function firstOpenDirection(cell) {
+    const dirs = [[1,0,0],[0,0,1],[0,1,0],[-1,0,0],[0,0,-1],[0,-1,0]];
+    for (const d of dirs) {
+      if (maze.isEmpty(cell[0]+d[0], cell[1]+d[1], cell[2]+d[2])) return d.slice();
+    }
+    return [0,0,1];
+  }
+  function resetPlayer() {
+    const f = firstOpenDirection(maze.start);
+    let u = [0,1,0];
+    if (Math.abs(V.dot(f, u)) > .5) u = [0,0,1];
+    player = { cell: maze.start.slice(), forward: f, up: u, steps: 0, won: false };
+    visitedFlags = new Uint8Array(maze.empty.length);
+    visitedMarks = [];
+    markVisited(player.cell);
+    anim = null;
+    showMessage('');
+    updateUI();
+    draw();
+  }
+  function randomSeedBase() {
+    const time = Date.now().toString(36);
+    const rnd = Math.floor(Math.random() * 0x1000000).toString(36).padStart(5, '0');
+    return `maze-${time}-${rnd}`;
+  }
+  function newMaze() {
+    const n = parseInt($('sizeSelect').value, 10);
+    const requestedSeed = $('seedInput').value.trim();
+    let baseSeed, extraPercent;
+    if (requestedSeed) {
+      const decoded = decodeSeed(requestedSeed);
+      baseSeed = decoded.baseSeed;
+      extraPercent = setExtraPassagePercent(decoded.extraPercent);
+    } else {
+      baseSeed = randomSeedBase();
+      extraPercent = readExtraPassagePercent();
+    }
+    currentSeedText = encodeSeed(baseSeed, extraPercent);
+    maze = new VoxelMaze(n, baseSeed, extraPercent);
+    resetPlayer();
+  }
+
+  function markVisited(cell) {
+    if (!maze || !visitedFlags || !maze.isEmpty(...cell)) return;
+    const idx = maze.idx(...cell);
+    if (visitedFlags[idx]) return;
+    visitedFlags[idx] = 1;
+    visitedMarks.push(cell.slice());
+  }
+
+  function showMessage(keyOrText) {
+    const text = I18N[lang][keyOrText] || keyOrText || '';
+    $('message').textContent = text;
+    if (text) messageTimer = performance.now() + 1800;
+  }
+
+
+  function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+  function hexToRgb(hex) {
+    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
+    if (!m) return [78, 94, 124];
+    return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+  }
+  function currentBaseColor() { return hexToRgb($('baseColorInput')?.value || '#4e5e7c'); }
+  function currentGoalColor() { return hexToRgb($('goalColorInput')?.value || '#ffc456'); }
+  function mixRgb(a, b, t) {
+    const u = clamp01(t);
+    return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
+  }
+  function rgbCss(rgb, alpha = 1) {
+    const r = Math.round(rgb[0]), g = Math.round(rgb[1]), b = Math.round(rgb[2]);
+    return alpha >= 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  function getCamera(now = performance.now()) {
+    const camBack = 0.36;
+    let posCenter = centerOf(player.cell);
+    let f = player.forward.slice();
+    let u = player.up.slice();
+    if (anim) {
+      const p = Math.min(1, (now - anim.start) / anim.duration);
+      const e = ease(p);
+      if (anim.type === 'rotate') {
+        f = rotateAround(anim.f0, anim.axis, anim.angle * e);
+        u = rotateAround(anim.u0, anim.axis, anim.angle * e);
+      } else if (anim.type === 'move') {
+        posCenter = V.lerp(anim.c0, anim.c1, e);
+      }
+      if (p >= 1) finishAnimation();
+    }
+    f = V.norm(f); u = V.norm(u);
+    const r = rightOf(f, u);
+    u = V.norm(V.cross(f, r));
+    const pos = V.sub(posCenter, V.mul(f, camBack));
+    return { pos, forward: f, up: u, right: r };
+  }
+  function finishAnimation() {
+    const a = anim;
+    anim = null;
+    if (!a) return;
+    if (a.type === 'rotate') {
+      player.forward = a.f1.slice();
+      player.up = a.u1.slice();
+      showMessage('rotated');
+    } else if (a.type === 'move') {
+      player.cell = a.cell1.slice();
+      markVisited(player.cell);
+      player.steps++;
+      if (sameCell(player.cell, maze.goal)) {
+        player.won = true;
+        showMessage('reached');
+      } else {
+        showMessage('moved');
+      }
+    }
+    updateUI();
+  }
+  function startRotation(kind) {
+    if (anim || player.won) return;
+    const f0 = player.forward.slice();
+    const u0 = player.up.slice();
+    const r0 = rightOf(f0, u0);
+    let axis, angle, f1, u1;
+    if (kind === 'left') { axis = u0; angle = -Math.PI/2; f1 = V.neg(r0); u1 = u0; }
+    if (kind === 'right') { axis = u0; angle = Math.PI/2; f1 = r0; u1 = u0; }
+    if (kind === 'up') { axis = r0; angle = -Math.PI/2; f1 = u0; u1 = V.neg(f0); }
+    if (kind === 'down') { axis = r0; angle = Math.PI/2; f1 = V.neg(u0); u1 = f0; }
+    anim = { type:'rotate', start:performance.now(), duration:210, axis, angle, f0, u0, f1:V.round(f1), u1:V.round(u1) };
+    requestFrame();
+  }
+  function move(sign) {
+    if (anim || player.won) return;
+    const d = sign === 1 ? player.forward : V.neg(player.forward);
+    const target = V.add(player.cell, V.round(d));
+    if (!maze.isEmpty(...target)) {
+      showMessage('blocked');
+      return;
+    }
+    anim = { type:'move', start:performance.now(), duration:190, c0:centerOf(player.cell), c1:centerOf(target), cell1:target };
+    requestFrame();
+  }
+
+  function castRay(px, py, pz, dx, dy, dz, maxDist) {
+    const INF = 1e30;
+    let cx = Math.floor(px), cy = Math.floor(py), cz = Math.floor(pz);
+    if (maze.isSolid(cx,cy,cz)) return { hit:true, dist:0.001, nx:0, ny:0, nz:0, norm:0, x:cx, y:cy, z:cz };
+    const sx = dx > 0 ? 1 : (dx < 0 ? -1 : 0);
+    const sy = dy > 0 ? 1 : (dy < 0 ? -1 : 0);
+    const sz = dz > 0 ? 1 : (dz < 0 ? -1 : 0);
+    const tdx = sx ? Math.abs(1/dx) : INF;
+    const tdy = sy ? Math.abs(1/dy) : INF;
+    const tdz = sz ? Math.abs(1/dz) : INF;
+    let tmx = sx > 0 ? (cx + 1 - px) / dx : (sx < 0 ? (px - cx) / -dx : INF);
+    let tmy = sy > 0 ? (cy + 1 - py) / dy : (sy < 0 ? (py - cy) / -dy : INF);
+    let tmz = sz > 0 ? (cz + 1 - pz) / dz : (sz < 0 ? (pz - cz) / -dz : INF);
+    let dist = 0, nx = 0, ny = 0, nz = 0, norm = 0;
+    for (let i = 0; i < 96; i++) {
+      if (tmx < tmy && tmx < tmz) {
+        cx += sx; dist = tmx; tmx += tdx; nx = -sx; ny = 0; nz = 0; norm = sx > 0 ? 1 : 2;
+      } else if (tmy < tmz) {
+        cy += sy; dist = tmy; tmy += tdy; nx = 0; ny = -sy; nz = 0; norm = sy > 0 ? 3 : 4;
+      } else {
+        cz += sz; dist = tmz; tmz += tdz; nx = 0; ny = 0; nz = -sz; norm = sz > 0 ? 5 : 6;
+      }
+      if (dist > maxDist) break;
+      if (maze.isSolid(cx, cy, cz)) return { hit:true, dist, nx, ny, nz, norm, x:cx, y:cy, z:cz };
+    }
+    return { hit:false, dist:maxDist, nx:0, ny:0, nz:0, norm:0, x:cx, y:cy, z:cz };
+  }
+
+  function resizeCanvas() {
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const rect = canvas.getBoundingClientRect();
+    const w = Math.max(320, Math.round(rect.width * dpr));
+    const h = Math.max(180, Math.round(rect.height * dpr));
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+  }
+
+  const FACE_DEFS = [
+    {d:[ 1, 0, 0], n:[-1, 0, 0], code:'mx'},
+    {d:[-1, 0, 0], n:[ 1, 0, 0], code:'px'},
+    {d:[ 0, 1, 0], n:[ 0,-1, 0], code:'my'},
+    {d:[ 0,-1, 0], n:[ 0, 1, 0], code:'py'},
+    {d:[ 0, 0, 1], n:[ 0, 0,-1], code:'mz'},
+    {d:[ 0, 0,-1], n:[ 0, 0, 1], code:'pz'}
+  ];
+
+  function faceVertsFromEmpty(x, y, z, fd) {
+    const xp = x + 1, yp = y + 1, zp = z + 1;
+    if (fd.d[0] ===  1) return [[xp,y,z], [xp,yp,z], [xp,yp,zp], [xp,y,zp]];
+    if (fd.d[0] === -1) return [[x,y,zp], [x,yp,zp], [x,yp,z], [x,y,z]];
+    if (fd.d[1] ===  1) return [[x,yp,zp], [xp,yp,zp], [xp,yp,z], [x,yp,z]];
+    if (fd.d[1] === -1) return [[x,y,z], [xp,y,z], [xp,y,zp], [x,y,zp]];
+    if (fd.d[2] ===  1) return [[x,y,zp], [xp,y,zp], [xp,yp,zp], [x,yp,zp]];
+    return [[xp,y,z], [x,y,z], [x,yp,z], [xp,yp,z]];
+  }
+
+  function pkey(p) { return `${p[0]},${p[1]},${p[2]}`; }
+  function edgeKey(a, b) {
+    const ak = pkey(a), bk = pkey(b);
+    return ak < bk ? `${ak}|${bk}` : `${bk}|${ak}`;
+  }
+  function parsePointKey(k) { return k.split(',').map(Number); }
+
+  function projectSegment(a, b, cam, w, h, fov) {
+    const near = 0.035;
+    function toCam(p) {
+      const r = V.sub(p, cam.pos);
+      return { x: V.dot(r, cam.right), y: V.dot(r, cam.up), z: V.dot(r, cam.forward) };
+    }
+    let ca = toCam(a), cb = toCam(b);
+    if (ca.z <= near && cb.z <= near) return null;
+    if (ca.z <= near || cb.z <= near) {
+      const t = (near - ca.z) / (cb.z - ca.z);
+      const ix = ca.x + (cb.x - ca.x) * t;
+      const iy = ca.y + (cb.y - ca.y) * t;
+      const iz = near;
+      if (ca.z <= near) ca = {x:ix, y:iy, z:iz};
+      else cb = {x:ix, y:iy, z:iz};
+    }
+    const aspect = w / h;
+    const tan = Math.tan(fov / 2);
+    function screen(c) {
+      return {
+        x: w/2 + (c.x / c.z) / (tan * aspect) * w/2,
+        y: h/2 - (c.y / c.z) / tan * h/2,
+        z: c.z
+      };
+    }
+    return { a: screen(ca), b: screen(cb) };
+  }
+
+  function projectPoint(p, cam, w, h, fov) {
+    const r = V.sub(p, cam.pos);
+    const x = V.dot(r, cam.right);
+    const y = V.dot(r, cam.up);
+    const z = V.dot(r, cam.forward);
+    if (z <= 0.035) return null;
+    const aspect = w / h;
+    const tan = Math.tan(fov / 2);
+    return {
+      x: w/2 + (x / z) / (tan * aspect) * w/2,
+      y: h/2 - (y / z) / tan * h/2,
+      z
+    };
+  }
+
+  function pointVisible(p, cam, margin = 0.07) {
+    const v = V.sub(p, cam.pos);
+    const dist = V.len(v);
+    if (dist < 0.08) return true;
+    const d = V.mul(v, 1 / dist);
+    const hit = castRay(cam.pos[0], cam.pos[1], cam.pos[2], d[0], d[1], d[2], Math.max(0.01, dist - margin));
+    return !hit.hit;
+  }
+
+  function visitedMarkerPoint(cell, cam) {
+    // Place the marker slightly below the cell center in the current view.
+    // This intentionally cheats the marker off the vanishing line so a straight
+    // corridor reads as a dotted trail instead of stacked points.
+    const c = centerOf(cell);
+    return V.add(c, V.mul(cam.up, -0.26));
+  }
+
+  function markerShadowForPoint(p, cam, w, h, fov) {
+    const down = V.neg(cam.up);
+    // The trail marker is a readability aid, so its shadow is also view-relative.
+    // Draw it only when there is an immediate wall plane below the marker.
+    const hit = castRay(p[0], p[1], p[2], down[0], down[1], down[2], 0.42);
+    if (!hit.hit || hit.dist <= 0.02) return null;
+    const floorPoint = V.add(p, V.mul(down, Math.max(0.01, hit.dist - 0.01)));
+    const sp = projectPoint(floorPoint, cam, w, h, fov);
+    if (!sp) return null;
+    return { x: sp.x, y: sp.y, z: sp.z, dist: hit.dist };
+  }
+
+  function drawVisitedMarkers(cam, w, h, fov) {
+    const check = $('visitedMarkerCheck');
+    if (!check || !check.checked || !visitedMarks.length) return;
+    const visible = [];
+    for (const cell of visitedMarks) {
+      if (sameCell(cell, player.cell)) continue;
+      const p = visitedMarkerPoint(cell, cam);
+      const sp = projectPoint(p, cam, w, h, fov);
+      if (!sp) continue;
+      if (sp.x < -22 || sp.x > w + 22 || sp.y < -22 || sp.y > h + 22) continue;
+      if (!pointVisible(p, cam, 0.08)) continue;
+      const shadow = markerShadowForPoint(p, cam, w, h, fov);
+      visible.push({ x: sp.x, y: sp.y, z: sp.z, shadow });
+    }
+    if (!visible.length) return;
+    visible.sort((a, b) => b.z - a.z);
+    ctx.save();
+
+    // Shadows first, so the balls remain clean and readable.
+    for (const m of visible) {
+      if (!m.shadow) continue;
+      const baseR = Math.max(1.5, Math.min(9.2, h * 0.020 / Math.pow(m.z, 1.25)));
+      const alpha = Math.max(0.08, Math.min(0.22, 0.28 - m.z / (maze.dim * 2.6)));
+      ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+      ctx.beginPath();
+      ctx.ellipse(m.shadow.x, m.shadow.y + baseR * 0.25, baseR * 1.20, baseR * 0.36, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    for (const m of visible) {
+      // Slightly exaggerate marker perspective. The maze walls remain physically
+      // projected, but the breadcrumbs need to read as a trail at a glance.
+      const r = Math.max(1.45, Math.min(8.8, h * 0.020 / Math.pow(m.z, 1.25)));
+      const alpha = Math.max(0.30, Math.min(0.78, 1.06 - m.z / (maze.dim * 1.10)));
+      const grad = ctx.createRadialGradient(m.x - r * 0.30, m.y - r * 0.34, r * 0.12, m.x, m.y, r);
+      grad.addColorStop(0, `rgba(230, 248, 255, ${alpha})`);
+      grad.addColorStop(0.48, `rgba(118, 207, 255, ${alpha * 0.76})`);
+      grad.addColorStop(1, `rgba(36, 95, 145, ${alpha * 0.54})`);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function edgePointVisible(a, b, ratio, cam) {
+    const p = [
+      a[0] + (b[0] - a[0]) * ratio,
+      a[1] + (b[1] - a[1]) * ratio,
+      a[2] + (b[2] - a[2]) * ratio
+    ];
+    const v = V.sub(p, cam.pos);
+    const dist = V.len(v);
+    if (dist < 0.04) return true;
+    const d = V.mul(v, 1 / dist);
+    const hit = castRay(cam.pos[0], cam.pos[1], cam.pos[2], d[0], d[1], d[2], Math.max(0.02, dist - 0.045));
+    return !hit.hit;
+  }
+
+  function edgeVisible(a, b, cam) {
+    return edgePointVisible(a, b, 1 / 3, cam) &&
+           edgePointVisible(a, b, 2 / 3, cam);
+  }
+
+  function drawVoxelOutlines(cam, w, h, fov) {
+    const edges = new Map();
+    const range = Math.min(maze.dim, 18);
+    const cx = Math.floor(cam.pos[0]), cy = Math.floor(cam.pos[1]), cz = Math.floor(cam.pos[2]);
+    const minX = Math.max(0, cx - range), maxX = Math.min(maze.dim - 1, cx + range);
+    const minY = Math.max(0, cy - range), maxY = Math.min(maze.dim - 1, cy + range);
+    const minZ = Math.max(0, cz - range), maxZ = Math.min(maze.dim - 1, cz + range);
+
+    for (let z = minZ; z <= maxZ; z++) {
+      for (let y = minY; y <= maxY; y++) {
+        for (let x = minX; x <= maxX; x++) {
+          if (!maze.isEmpty(x,y,z)) continue;
+          for (const fd of FACE_DEFS) {
+            const nx = x + fd.d[0], ny = y + fd.d[1], nz = z + fd.d[2];
+            if (!maze.isSolid(nx, ny, nz)) continue;
+            const verts = faceVertsFromEmpty(x, y, z, fd);
+            for (let i = 0; i < 4; i++) {
+              const a = verts[i], b = verts[(i + 1) % 4];
+              const key = edgeKey(a,b);
+              let rec = edges.get(key);
+              if (!rec) {
+                rec = { a, b, normals: new Set(), count: 0 };
+                edges.set(key, rec);
+              }
+              rec.normals.add(fd.code);
+              rec.count++;
+            }
+          }
+        }
+      }
+    }
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(8, 12, 20, 0.42)';
+    ctx.lineWidth = Math.max(1, Math.min(1.35, (window.devicePixelRatio || 1) * 0.82));
+
+    for (const rec of edges.values()) {
+      // Interior seams between coplanar wall tiles are not structure; skip them.
+      // Edges with one boundary face are opening/silhouette edges, and edges
+      // with multiple non-coplanar faces are real solid corners.
+      if (rec.normals.size < 2) continue;
+      if (!edgeVisible(rec.a, rec.b, cam)) continue;
+      const seg = projectSegment(rec.a, rec.b, cam, w, h, fov);
+      if (!seg) continue;
+      if ((seg.a.x < -w && seg.b.x < -w) || (seg.a.x > 2*w && seg.b.x > 2*w) ||
+          (seg.a.y < -h && seg.b.y < -h) || (seg.a.y > 2*h && seg.b.y > 2*h)) continue;
+      const avgZ = (seg.a.z + seg.b.z) * .5;
+      const alpha = Math.max(.22, Math.min(.62, .76 - avgZ / (maze.dim * 1.7)));
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      ctx.moveTo(seg.a.x, seg.a.y);
+      ctx.lineTo(seg.b.x, seg.b.y);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawRaycast(cam) {
+    resizeCanvas();
+    const w = canvas.width, h = canvas.height;
+    const aspect = w / h;
+    const quality = Math.min(1, Math.max(.62, w < 760 ? .86 : .76));
+    const rw = Math.max(260, Math.min(760, Math.round(w * quality)));
+    const rh = Math.max(150, Math.round(rw / aspect));
+    if (buffer.width !== rw || buffer.height !== rh) {
+      buffer.width = rw; buffer.height = rh;
+      imgData = bctx.createImageData(rw, rh);
+      depthBuffer = new Float32Array(rw * rh);
+      normBuffer = new Uint8Array(rw * rh);
+    }
+    const data = imgData.data;
+    const fov = Math.PI * 72 / 180;
+    const tan = Math.tan(fov / 2);
+    const maxDist = Math.max(maze.dim * 2.2, 18);
+    const baseColor = currentBaseColor();
+    const goalColor = currentGoalColor();
+    const goalCenter = centerOf(maze.goal);
+    const goalMaxDist = maze.goalMaxDist || 1;
+    const fog = [5, 8, 16];
+    let p = 0;
+    for (let y = 0; y < rh; y++) {
+      const sy = 1 - 2 * (y + .5) / rh;
+      for (let x = 0; x < rw; x++, p++) {
+        const sx = 2 * (x + .5) / rw - 1;
+        let dx = cam.forward[0] + cam.right[0] * sx * tan * aspect + cam.up[0] * sy * tan;
+        let dy = cam.forward[1] + cam.right[1] * sx * tan * aspect + cam.up[1] * sy * tan;
+        let dz = cam.forward[2] + cam.right[2] * sx * tan * aspect + cam.up[2] * sy * tan;
+        const inv = 1 / (Math.hypot(dx,dy,dz) || 1);
+        dx *= inv; dy *= inv; dz *= inv;
+        const hit = castRay(cam.pos[0], cam.pos[1], cam.pos[2], dx, dy, dz, maxDist);
+        depthBuffer[p] = hit.hit ? hit.dist : maxDist;
+        normBuffer[p] = hit.norm;
+        let r, g, b;
+        if (!hit.hit) {
+          r = fog[0]; g = fog[1]; b = fog[2];
+        } else {
+          const hitPoint = [cam.pos[0] + dx * hit.dist, cam.pos[1] + dy * hit.dist, cam.pos[2] + dz * hit.dist];
+          const distToGoal = V.len(V.sub(hitPoint, goalCenter));
+          const goalWeight = 1 - clamp01(distToGoal / goalMaxDist);
+          const mixed = mixRgb(baseColor, goalColor, goalWeight);
+
+          const incidence = Math.max(0, -(hit.nx*dx + hit.ny*dy + hit.nz*dz));
+          const frontFacing = Math.max(0, -(hit.nx*cam.forward[0] + hit.ny*cam.forward[1] + hit.nz*cam.forward[2]));
+          let shade = 0.78 + incidence * 0.10 + frontFacing * 0.12;
+          if (frontFacing < 0.35) shade -= 0.08;
+          const fogMix = Math.min(.76, hit.dist / maxDist * .86);
+          r = mixed[0] * shade * (1 - fogMix) + fog[0] * fogMix;
+          g = mixed[1] * shade * (1 - fogMix) + fog[1] * fogMix;
+          b = mixed[2] * shade * (1 - fogMix) + fog[2] * fogMix;
+        }
+        const di = p * 4;
+        data[di] = r; data[di+1] = g; data[di+2] = b; data[di+3] = 255;
+      }
+    }
+
+    // Fill is produced by raycasting only. Outlines are intentionally not
+    // written into the low-resolution raycast buffer; doing that made line
+    // weight inconsistent after scaling and exaggerated distant openings.
+    bctx.putImageData(imgData, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(buffer, 0, 0, w, h);
+    drawVoxelOutlines(cam, w, h, fov);
+    drawVisitedMarkers(cam, w, h, fov);
+    drawGoalMarker(cam, w, h, fov);
+    drawGoalGyro(cam, w, h);
+  }
+
+  function goalVisible(cam) {
+    const gc = centerOf(maze.goal);
+    const v = V.sub(gc, cam.pos);
+    const dist = V.len(v);
+    if (dist < .1) return { visible:true, dist, v };
+    const d = V.mul(v, 1/dist);
+    const hit = castRay(cam.pos[0], cam.pos[1], cam.pos[2], d[0], d[1], d[2], Math.max(.01, dist - .05));
+    return { visible: !hit.hit || hit.dist >= dist - .08, dist, v };
+  }
+  function drawGoalMarker(cam, w, h, fov) {
+    if (sameCell(player.cell, maze.goal)) return;
+    const gv = goalVisible(cam);
+    if (!gv.visible) return;
+    const z = V.dot(gv.v, cam.forward);
+    if (z <= .05) return;
+    const x = V.dot(gv.v, cam.right);
+    const y = V.dot(gv.v, cam.up);
+    const aspect = w / h;
+    const tan = Math.tan(fov/2);
+    const sx = w/2 + (x / z) / (tan * aspect) * w/2;
+    const sy = h/2 - (y / z) / tan * h/2;
+    if (sx < -60 || sx > w+60 || sy < -60 || sy > h+60) return;
+    const radius = Math.max(7, Math.min(34, h * .10 / z));
+    ctx.save();
+    ctx.globalAlpha = Math.max(.22, Math.min(.85, 1.25 - gv.dist / 8));
+    const goalRgb = currentGoalColor();
+    ctx.fillStyle = rgbCss(goalRgb);
+    ctx.shadowColor = rgbCss(goalRgb);
+    ctx.shadowBlur = 22;
+    ctx.beginPath();
+    ctx.arc(sx, sy, radius, 0, Math.PI*2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = rgbCss(mixRgb(goalRgb, [255,255,255], .38));
+    ctx.lineWidth = Math.max(1, radius * .09);
+    ctx.stroke();
+    ctx.restore();
+  }
+  function drawGoalGyro(cam, w, h) {
+    if (sameCell(player.cell, maze.goal)) return;
+    const goal = maze.goal.slice();
+    const cur = player.cell.slice();
+    const dim = maze.dim - 1;
+    const R = Math.max(44, Math.min(66, Math.min(w, h) * 0.095));
+    const cx = w - R - 20;
+    const cy = 20 + R;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    const bw = R * 2.2, bh = R * 2.2;
+    const bx = -bw/2, by = -bh/2;
+    const rr = 14;
+    ctx.fillStyle = 'rgba(7, 12, 22, 0.42)';
+    ctx.strokeStyle = 'rgba(130, 160, 205, 0.18)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(bx + rr, by);
+    ctx.arcTo(bx + bw, by, bx + bw, by + bh, rr);
+    ctx.arcTo(bx + bw, by + bh, bx, by + bh, rr);
+    ctx.arcTo(bx, by + bh, bx, by, rr);
+    ctx.arcTo(bx, by, bx + bw, by, rr);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Fixed isometric-like cube projection.
+    const sx = R * 0.72;
+    const sy = R * 0.42;
+    const sz = R * 0.58;
+    function proj(p) {
+      const nx = dim ? p[0] / dim - 0.5 : 0;
+      const ny = dim ? p[1] / dim - 0.5 : 0;
+      const nz = dim ? p[2] / dim - 0.5 : 0;
+      return {
+        x: (nx - nz) * sx,
+        y: (-ny) * sz + (nx + nz) * sy
+      };
+    }
+    function projVec(v) {
+      return { x: (v[0] - v[2]) * sx, y: (-v[1]) * sz + (v[0] + v[2]) * sy };
+    }
+
+    const cubeVerts = [
+      [0,0,0],[dim,0,0],[dim,dim,0],[0,dim,0],
+      [0,0,dim],[dim,0,dim],[dim,dim,dim],[0,dim,dim]
+    ].map(proj);
+    const cubeEdges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+    ctx.strokeStyle = 'rgba(183, 208, 240, 0.72)';
+    ctx.lineWidth = 1.15;
+    ctx.beginPath();
+    for (const [a,b] of cubeEdges) {
+      ctx.moveTo(cubeVerts[a].x, cubeVerts[a].y);
+      ctx.lineTo(cubeVerts[b].x, cubeVerts[b].y);
+    }
+    ctx.stroke();
+
+    const curP = proj(cur);
+    const goalP = proj(goal);
+    const f = V.round(player.forward);
+    const dir2 = projVec(f);
+    const dirLen = Math.hypot(dir2.x, dir2.y) || 1;
+    const ux = dir2.x / dirLen, uy = dir2.y / dirLen;
+    const arrowLen = R * 0.32;
+    const endX = curP.x + ux * arrowLen;
+    const endY = curP.y + uy * arrowLen;
+
+    // Current point and heading arrow
+    ctx.fillStyle = 'rgba(113, 201, 255, 0.98)';
+    ctx.beginPath(); ctx.arc(curP.x, curP.y, 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(10, 12, 18, 0.88)';
+    ctx.lineWidth = 5.4;
+    ctx.beginPath(); ctx.moveTo(curP.x, curP.y); ctx.lineTo(endX, endY); ctx.stroke();
+    ctx.strokeStyle = 'rgba(113, 201, 255, 1)';
+    ctx.lineWidth = 2.8;
+    ctx.beginPath(); ctx.moveTo(curP.x, curP.y); ctx.lineTo(endX, endY); ctx.stroke();
+    const ang = Math.atan2(endY - curP.y, endX - curP.x);
+    const ah = 9;
+    ctx.fillStyle = 'rgba(113, 201, 255, 1)';
+    ctx.beginPath();
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(endX - Math.cos(ang - Math.PI/6) * ah, endY - Math.sin(ang - Math.PI/6) * ah);
+    ctx.lineTo(endX - Math.cos(ang + Math.PI/6) * ah, endY - Math.sin(ang + Math.PI/6) * ah);
+    ctx.closePath();
+    ctx.fill();
+
+    // Goal point
+    ctx.fillStyle = rgbCss(currentGoalColor());
+    ctx.beginPath(); ctx.arc(goalP.x, goalP.y, 3.8, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(10, 12, 18, 0.88)';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    // Optional thin line between current and goal for readability.
+    ctx.strokeStyle = rgbCss(currentGoalColor(), 0.42);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(curP.x, curP.y); ctx.lineTo(goalP.x, goalP.y); ctx.stroke();
+
+    const dist = Math.round(V.len(V.sub(centerOf(goal), centerOf(cur))));
+    ctx.fillStyle = 'rgba(243, 247, 255, 0.86)';
+    ctx.font = `${Math.max(11, R * 0.18)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`${lang === 'ja' ? '距離' : 'Dist.'} ${dist}`, 0, R + 10);
+    ctx.restore();
+  }
+
+  function draw(now = performance.now()) {
+    if (!maze || !player) return;
+    const cam = getCamera(now);
+    drawRaycast(cam);
+    if (messageTimer && now > messageTimer && !player.won) {
+      messageTimer = 0;
+      $('message').textContent = '';
+    }
+  }
+  let frameRequested = false;
+  function requestFrame() {
+    if (frameRequested) return;
+    frameRequested = true;
+    requestAnimationFrame(loop);
+  }
+  function loop(now) {
+    frameRequested = false;
+    draw(now);
+    if (anim) requestFrame();
+  }
+
+  function canMove(v) {
+    const d = V.round(v);
+    return maze.isEmpty(player.cell[0]+d[0], player.cell[1]+d[1], player.cell[2]+d[2]);
+  }
+  function paintNavButton(id, open) {
+    const el = $(id);
+    if (!el) return;
+    el.classList.remove('nav-open', 'nav-closed', 'nav-neutral');
+    el.classList.add(open ? 'nav-open' : 'nav-closed');
+  }
+  function updateControlHints() {
+    const r = rightOf(player.forward, player.up);
+    paintNavButton('btnForward', canMove(player.forward));
+    paintNavButton('btnBack', canMove(V.neg(player.forward)));
+    paintNavButton('btnUp', canMove(player.up));
+    paintNavButton('btnDown', canMove(V.neg(player.up)));
+    paintNavButton('btnRight', canMove(r));
+    paintNavButton('btnLeft', canMove(V.neg(r)));
+  }
+  function updateUI() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (I18N[lang][key]) el.textContent = I18N[lang][key];
+    });
+    const r = rightOf(player.forward, player.up);
+    const posText = `(${player.cell.join(', ')})`;
+    $('hudPos').textContent = `${t('pos')}: ${posText}`;
+    $('hudDir').textContent = `${t('dir')}: ${vecName(player.forward)} / ${t('upward')}: ${vecName(player.up)}`;
+    $('hudSteps').textContent = `${t('stepLabel')}: ${player.steps}`;
+    $('statPos').textContent = posText;
+    $('statFace').textContent = vecName(player.forward);
+    $('statUp').textContent = vecName(player.up);
+    $('statGoal').textContent = `(${maze.goal.join(', ')})`;
+    $('statSteps').textContent = String(player.steps);
+    const seedLabel = $('currentSeedLabel');
+    if (seedLabel) {
+      seedLabel.textContent = currentSeedText || '-';
+      seedLabel.title = t('copySeedHint');
+    }
+    updateControlHints();
+  }
+
+
+  async function copyCurrentSeed() {
+    if (!currentSeedText) return;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(currentSeedText);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = currentSeedText;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      showMessage('copied');
+    } catch (err) {
+      showMessage(currentSeedText);
+    }
+  }
+
+  function bindEvents() {
+    $('btnNew').addEventListener('click', newMaze);
+    $('btnUp').addEventListener('click', () => startRotation('up'));
+    $('btnDown').addEventListener('click', () => startRotation('down'));
+    $('btnLeft').addEventListener('click', () => startRotation('left'));
+    $('btnRight').addEventListener('click', () => startRotation('right'));
+    $('btnForward').addEventListener('click', () => move(1));
+    $('btnBack').addEventListener('click', () => move(-1));
+    $('langSelect').addEventListener('change', e => { lang = e.target.value; updateUI(); draw(); });
+    $('seedInput').addEventListener('keydown', e => { if (e.key === 'Enter') newMaze(); });
+    $('extraPassageSlider').addEventListener('input', updateExtraPassageValue);
+    $('baseColorInput').addEventListener('input', draw);
+    $('goalColorInput').addEventListener('input', draw);
+    $('visitedMarkerCheck').addEventListener('change', draw);
+    $('currentSeedLabel').addEventListener('click', copyCurrentSeed);
+    window.addEventListener('keydown', e => {
+      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+      if (e.code === 'ArrowUp') startRotation('up');
+      if (e.code === 'ArrowDown') startRotation('down');
+      if (e.code === 'ArrowLeft') startRotation('left');
+      if (e.code === 'ArrowRight') startRotation('right');
+      if (e.code === 'Space') move(e.shiftKey ? -1 : 1);
+    }, { passive:false });
+    window.addEventListener('resize', () => { draw(); });
+  }
+
+  bindEvents();
+  updateExtraPassageValue();
+  newMaze();
+})();
+</script>
+</body>
+</html>
